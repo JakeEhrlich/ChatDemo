@@ -17,7 +17,6 @@ fn get_line_std() -> String {
 
 fn handle_from_client(reader : BufReader<TcpStream>, send : Sender<String>) {
     for msg in reader.lines() {
-        //println!("{}", msg.unwrap());
         send.send(msg.unwrap());
     }
 }
@@ -41,10 +40,15 @@ fn host(binder : &str) {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
+                let writer = stream.try_clone().unwrap();
                 let reader = BufReader::new(stream);
                 let send_to_group_copy = send_to_group.clone();
+                let (send_to_client, read_for_client) = channel();
                 spawn(move||{
                     handle_from_client(reader, send_to_group_copy)
+                });
+                spawn(move||{
+                    handle_to_client(writer, read_for_client)
                 });
             }
             Err(_) => {
