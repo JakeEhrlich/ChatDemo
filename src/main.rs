@@ -15,16 +15,30 @@ fn get_line_std() -> String {
     return trim(out);
 }
 
+fn handle_from_client(reader : BufReader<TcpStream>, send : Sender<String>) {
+    for msg in reader.lines() {
+        //println!("{}", msg.unwrap());
+        send.send(msg.unwrap());
+    }
+}
+
+fn handle_messages(recv : Receiver<String>) {
+    for msg in recv.into_iter() {
+        println!("user: {}", msg);
+    }
+}
+
 fn host(binder : &str) {
     let listener = TcpListener::bind(binder).unwrap(); //make a socket
+    let (send_to_group, read_from_group) = channel(); //make a channel
+    spawn(move||{ handle_messages(read_from_group); }); //start handeling the messages
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
                 let mut reader = BufReader::new(stream);
+                let send_to_group_copy = send_to_group.clone();
                 spawn(move||{
-                    for msg in reader.lines() {
-                        println!("user: {}", trim(msg.unwrap()));
-                    }
+                    handle_from_client(reader, send_to_group_copy)
                 });
             }
             Err(_) => {
@@ -43,7 +57,7 @@ fn client(binder : &str) {
        if msg == ":q" {
            return;
        }
-       stream.write((msg + "\n").as_str().as_bytes());
+       let _ = stream.write((msg + "\n").as_str().as_bytes());
     }
 }
 
