@@ -21,9 +21,11 @@ fn host(binder : &str) {
         match stream {
             Ok(stream) => {
                 let mut reader = BufReader::new(stream);
-                for msg in reader.lines() {
-                    println!("user: {}", trim(msg.unwrap()));
-                }
+                spawn(move||{
+                    for msg in reader.lines() {
+                        println!("user: {}", trim(msg.unwrap()));
+                    }
+                });
             }
             Err(_) => {
                 println!("somthing went wrong!");
