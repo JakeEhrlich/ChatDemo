@@ -11,13 +11,27 @@ fn get_line_std() -> String {
     return out.trim_right_matches(|c| c == '\n' || c == '\r').to_string();
 }
 
+fn host(binder : &str) {
+    let listener = TcpListener::bind(binder).unwrap(); //make a socket
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                println!("someone connected!");
+            }
+            Err(_) => {
+                println!("somthing went wrong!");
+            }
+        }
+    }
+}
+
 fn main() {
     loop {
         let cmd = get_line_std();
         match cmd.as_str() {
             "host" => {
                 let binder = get_line_std();
-                println!("you want to bind to {}", binder);
+                host(binder.as_str());
             }
             "client" => {
                 let binder = get_line_std();
