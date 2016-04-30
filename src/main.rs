@@ -25,6 +25,19 @@ fn host(binder : &str) {
     }
 }
 
+fn client(binder : &str) {
+    //open a socket
+    let mut stream = TcpStream::connect(binder).unwrap();
+    //loop until the user quits
+    loop {
+       let msg = get_line_std();
+       if msg == ":q" {
+           return;
+       }
+       stream.write((msg + "\n").as_str().as_bytes());
+    }
+}
+
 fn main() {
     loop {
         let cmd = get_line_std();
@@ -35,7 +48,7 @@ fn main() {
             }
             "client" => {
                 let binder = get_line_std();
-                println!("you want to connect to {}", binder);
+                client(binder.as_str());
             }
             _ => {
                 println!("cmd not found")
