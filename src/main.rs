@@ -3,7 +3,6 @@ use std::sync::mpsc::{Sender, Receiver, channel};
 use std::io::{stdin, BufReader, BufRead, Write};
 use std::thread::{spawn};
 use std::sync::{Arc, Mutex};
-use std::error::{Error};
 
 fn trim(s : String) -> String {
     return s.trim_right_matches(|c| c == '\n' || c == '\r').to_string();
@@ -17,14 +16,15 @@ fn get_line_std() -> String {
 
 fn handle_from_client(reader : BufReader<TcpStream>, send : Sender<String>) {
     for msg in reader.lines() {
-        send.send(msg.unwrap());
+        let _ = send.send(msg.unwrap());
     }
 }
 
 fn handle_to_client(mut writer : TcpStream, recv : Receiver<String>) {
     for msg in recv.into_iter() {
        println!("client was sent: '{}'", msg);
-       let _ = writer.write(msg.as_str().as_bytes());
+       let _ = writer.write((msg + "\n").as_str().as_bytes());
+
     }
 }
 
@@ -66,14 +66,21 @@ fn host(binder : &str) {
 
 fn client(binder : &str) {
     //open a socket
-    let mut stream = TcpStream::connect(binder).unwrap();
+    let mut write_stream = TcpStream::connect(binder).unwrap();
+    let read_buf = BufReader::new(write_stream.try_clone().unwrap());
+    //loop though lines
+    spawn(move|| {
+        for msg in read_buf.lines() {
+            println!("from server: {}", msg.unwrap());
+        }
+    });
     //loop until the user quits
     loop {
        let msg = get_line_std();
        if msg == ":q" {
            return;
        }
-       let _ = stream.write((msg + "\n").as_str().as_bytes());
+       let _ = write_stream.write((msg + "\n").as_str().as_bytes());
     }
 }
 
