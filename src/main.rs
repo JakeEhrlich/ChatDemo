@@ -23,20 +23,25 @@ fn handle_from_client(reader : BufReader<TcpStream>, send : Sender<String>) {
 
 fn handle_to_client(mut writer : TcpStream, recv : Receiver<String>) {
     for msg in recv.into_iter() {
+       println!("client was sent: '{}'", msg);
        let _ = writer.write(msg.as_str().as_bytes());
     }
 }
 
-fn handle_messages(recv : Receiver<String>) {
+fn handle_messages(recv : Receiver<String>, client_chans : Arc<Mutex<Vec<Sender<String>>>>) {
     for msg in recv.into_iter() {
-        println!("user: {}", msg);
+        for client in &*(client_chans.lock().unwrap()) {
+            let _ = client.send(msg.clone());
+        }
     }
 }
 
 fn host(binder : &str) {
+    let client_chans : Arc<Mutex<Vec<Sender<String>>>> = Arc::new(Mutex::new(Vec::new()));
     let listener = TcpListener::bind(binder).unwrap(); //make a socket
     let (send_to_group, read_from_group) = channel(); //make a channel
-    spawn(move||{ handle_messages(read_from_group); }); //start handeling the messages
+    let client_chans_clone = client_chans.clone();
+    spawn(move||{ handle_messages(read_from_group, client_chans_clone); }); //start handeling the messages
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
@@ -44,6 +49,7 @@ fn host(binder : &str) {
                 let reader = BufReader::new(stream);
                 let send_to_group_copy = send_to_group.clone();
                 let (send_to_client, read_for_client) = channel();
+                client_chans.lock().unwrap().push(send_to_client);
                 spawn(move||{
                     handle_from_client(reader, send_to_group_copy)
                 });
