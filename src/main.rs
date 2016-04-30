@@ -5,10 +5,14 @@ use std::thread::{spawn};
 use std::sync::{Arc, Mutex};
 use std::error::{Error};
 
+fn trim(s : String) -> String {
+    return s.trim_right_matches(|c| c == '\n' || c == '\r').to_string();
+}
+
 fn get_line_std() -> String {
     let mut out : String = "".to_string();
     let _ = stdin().read_line(&mut out);
-    return out.trim_right_matches(|c| c == '\n' || c == '\r').to_string();
+    return trim(out);
 }
 
 fn host(binder : &str) {
@@ -16,7 +20,10 @@ fn host(binder : &str) {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                println!("someone connected!");
+                let mut reader = BufReader::new(stream);
+                for msg in reader.lines() {
+                    println!("user: {}", trim(msg.unwrap()));
+                }
             }
             Err(_) => {
                 println!("somthing went wrong!");
