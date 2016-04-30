@@ -22,6 +22,12 @@ fn handle_from_client(reader : BufReader<TcpStream>, send : Sender<String>) {
     }
 }
 
+fn handle_to_client(mut writer : TcpStream, recv : Receiver<String>) {
+    for msg in recv.into_iter() {
+       let _ = writer.write(msg.as_str().as_bytes());
+    }
+}
+
 fn handle_messages(recv : Receiver<String>) {
     for msg in recv.into_iter() {
         println!("user: {}", msg);
@@ -35,7 +41,7 @@ fn host(binder : &str) {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                let mut reader = BufReader::new(stream);
+                let reader = BufReader::new(stream);
                 let send_to_group_copy = send_to_group.clone();
                 spawn(move||{
                     handle_from_client(reader, send_to_group_copy)
