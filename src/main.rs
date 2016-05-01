@@ -40,9 +40,12 @@ fn host(binder : &str) {
     let client_chans : Arc<Mutex<Vec<Sender<String>>>> = Arc::new(Mutex::new(Vec::new()));
     let listener = TcpListener::bind(binder).unwrap(); //make a socket
     let (send_to_group, read_from_group) = channel(); //make a channel
+    println!("Host started on {}", binder);
+    println!("Awaiting client connections...");
     let client_chans_clone = client_chans.clone();
     spawn(move||{ handle_messages(read_from_group, client_chans_clone); }); //start handeling the messages
     for stream in listener.incoming() {
+        println!("A new client has connected...");
         match stream {
             Ok(stream) => {
                 let writer = stream.try_clone().unwrap();
@@ -58,20 +61,21 @@ fn host(binder : &str) {
                 });
             }
             Err(_) => {
-                println!("somthing went wrong!");
+                println!("Somthing went wrong!");
             }
         }
     }
 }
 
-fn client(binder : &str) {
+fn client(binder : &str, name : &str) {
     //open a socket
     let mut write_stream = TcpStream::connect(binder).unwrap();
+    println!("Connected! Welcome, {}!", name);
     let read_buf = BufReader::new(write_stream.try_clone().unwrap());
     //loop though lines
     spawn(move|| {
         for msg in read_buf.lines() {
-            println!("from server: {}", msg.unwrap());
+            println!("{}", msg.unwrap());
         }
     });
     //loop until the user quits
@@ -80,21 +84,27 @@ fn client(binder : &str) {
        if msg == ":q" {
            return;
        }
-       let _ = write_stream.write((msg + "\n").as_str().as_bytes());
+       let final_msg = name.to_string() + ": " + msg.as_str();
+       let _ = write_stream.write((final_msg + "\n").as_str().as_bytes());
     }
 }
 
 fn main() {
     loop {
+        println!("Would you like to start a <client> or <host>:");
         let cmd = get_line_std();
         match cmd.as_str() {
             "host" => {
+                println!("Enter IP:Port ");
                 let binder = get_line_std();
                 host(binder.as_str());
             }
             "client" => {
+                println!("Please enter your name:");
+                let name = get_line_std();
+                println!("Please enter the IP address to connect to:");
                 let binder = get_line_std();
-                client(binder.as_str());
+                client(binder.as_str(), name.as_str());
             }
             _ => {
                 println!("cmd not found")
